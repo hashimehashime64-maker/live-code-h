@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <title>live code-h</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ext-language_tools.js"></script>
+    
+    <style>
+        :root { --bg: #1e1e1e; --border: #3c3c3c; --accent: #007acc; --tab-active: #1e1e1e; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+
+        /* Header & Tabs */
+        .editor-header { background: #252526; display: flex; border-bottom: 1px solid var(--border); justify-content: space-between; align-items: center; }
+        .tab-group { display: flex; }
+        .tab { padding: 10px 20px; cursor: pointer; font-size: 13px; color: #969696; border-right: 1px solid var(--bg); transition: 0.3s; }
+        .tab.active { background: var(--tab-active); color: #fff; border-top: 2px solid var(--accent); }
+
+        .container { display: flex; flex: 1; height: calc(100vh - 40px); }
+        
+        /* Editor Section */
+        .editor-wrap { width: 50%; height: 100%; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+        .editor-area { flex: 1; position: relative; }
+        .ace-editor { position: absolute; top: 0; bottom: 0; left: 0; right: 0; font-size: 16px; visibility: hidden; }
+        .ace-editor.active { visibility: visible; }
+
+        /* Save Button Bar */
+        .action-bar { background: #252526; padding: 5px 15px; display: flex; justify-content: flex-end; border-top: 1px solid var(--border); }
+        .save-btn { background: #4caf50; color: white; border: none; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .save-btn:hover { background: #45a049; }
+
+        /* Preview Section */
+        .preview-wrap { width: 50%; background: white; display: flex; flex-direction: column; }
+        .preview-top { background: #f3f3f3; padding: 8px 15px; font-size: 11px; color: #666; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        #live-frame { flex: 1; border: none; width: 100%; }
+
+        .fs-btn { background: var(--accent); color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; }
+
+        /* Autocomplete Original Look */
+        .ace_autocomplete { background: #252526 !important; color: #ccc !important; border: 1px solid #454545 !important; box-shadow: 0 8px 16px rgba(0,0,0,0.5) !important; }
+    </style>
+</head>
+<body>
+
+<div class="editor-header">
+    <div class="tab-group">
+        <div class="tab active" onclick="openTab(event, 'html')">index.html</div>
+        <div class="tab" onclick="openTab(event, 'css')">style.css</div>
+        <div class="tab" onclick="openTab(event, 'js')">script.js</div>
+    </div>
+    <div style="padding-right: 15px; font-size: 11px; color: #858585;">AI Coding Teacher v3.0</div>
+</div>
+
+<div class="container">
+    <div class="editor-wrap">
+        <div class="editor-area">
+            <div id="html-edit" class="ace-editor active"></div>
+            <div id="css-edit" class="ace-editor"></div>
+            <div id="js-edit" class="ace-editor"></div>
+        </div>
+        <div class="action-bar">
+            <button class="save-btn" onclick="downloadCurrentFile()">Download File</button>
+        </div>
+    </div>
+
+    <div class="preview-wrap" id="previewBox">
+        <div class="preview-top">
+            <span>LIVE PREVIEW</span>
+            <button class="fs-btn" onclick="goFull()">Full Screen</button>
+        </div>
+        <iframe id="live-frame"></iframe>
+    </div>
+</div>
+
+<script>
+    ace.require("ace/ext/language_tools");
+
+    const editors = {};
+    let currentActive = 'html';
+
+    const config = {
+        html: { id: "html-edit", mode: "ace/mode/html", file: "index.html", val: "<h1>സേവ് ചെയ്തു നോക്കൂ!</h1>\n<p>Download ബട്ടൺ ക്ലിക്ക് ചെയ്യുക.</p>" },
+        css: { id: "css-edit", mode: "ace/mode/css", file: "style.css", val: "body { text-align: center; background: #eee; font-family: sans-serif; }" },
+        js: { id: "js-edit", mode: "ace/mode/javascript", file: "script.js", val: "console.log('File Ready');" }
+    };
+
+    for (let lang in config) {
+        let ed = ace.edit(config[lang].id);
+        ed.setTheme("ace/theme/monokai");
+        ed.session.setMode(config[lang].mode);
+        ed.setValue(config[lang].val, 1);
+        ed.setOptions({
+            enableBasicAutocompletion: true,
+            enableLiveAutocompletion: true,
+            enableSnippets: true
+        });
+        ed.on("input", updatePreview);
+        editors[lang] = ed;
+    }
+
+    function openTab(evt, lang) {
+        currentActive = lang;
+        document.querySelectorAll('.ace-editor').forEach(e => e.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(lang + '-edit').classList.add('active');
+        evt.currentTarget.classList.add('active');
+    }
+
+    function updatePreview() {
+        const html = editors.html.getValue();
+        const css = `<style>${editors.css.getValue()}</style>`;
+        const js = `<script>${editors.js.getValue()}<\/script>`;
+        const output = document.getElementById('live-frame').contentWindow.document;
+        output.open();
+        output.write(html + css + js);
+        output.close();
+    }
+
+    // ഫയൽ സേവ് ചെയ്യാനുള്ള ഫങ്ക്ഷൻ
+    function downloadCurrentFile() {
+        const text = editors[currentActive].getValue();
+        const fileName = config[currentActive].file;
+        const blob = new Blob([text], { type: "text/plain" });
+        const link = document.createElement("a");
+        link.download = fileName;
+        link.href = window.URL.createObjectURL(blob);
+        link.click();
+    }
+
+    function goFull() {
+        const p = document.getElementById("previewBox");
+        if (p.requestFullscreen) p.requestFullscreen();
+    }
+
+    updatePreview();
+</script>
+
+</body>
+</html>
